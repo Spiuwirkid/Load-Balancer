@@ -1,88 +1,99 @@
-Load Balancer dengan Nginx, Docker, Kubernetes, dan Minikube
-Proyek ini adalah implementasi Load Balancer menggunakan Nginx, Docker, Kubernetes, dan Minikube. Load balancer ini akan mendistribusikan trafik dari pengguna ke berbagai pod yang menjalankan aplikasi di dalam cluster Kubernetes.
+# Canvas Load Balancer dengan Nginx, Docker, Kubernetes, dan Minikube
 
-1. Instalasi Prasyarat
-Update Sistem dan Install Dependencies:
-bash
-Copy
-Edit
+Proyek ini adalah implementasi Load Balancer menggunakan Nginx, Docker, Kubernetes, dan Minikube. Load Balancer ini mendistribusikan trafik dari pengguna ke beberapa pod yang menjalankan aplikasi di dalam cluster Kubernetes.
+
+## Installation
+
+### Install Dependencies
+
+Pastikan untuk memperbarui sistem dan menginstal dependensi yang diperlukan dengan perintah berikut:
+
+```bash
 sudo apt update && sudo apt upgrade -y
+```
+### Install Docker
+```bash
 sudo apt install docker.io -y
 sudo systemctl enable docker
 sudo systemctl start docker
-Mengatur Docker Tanpa Sudo:
-bash
-Copy
-Edit
+```
+### Set Docker Without Sudo
+Tambahkan user ke grup Docker untuk menjalankan Docker tanpa sudo:
+```bash
 sudo usermod -aG docker $USER
 newgrp docker
-Menambahkan Repository Kubernetes:
-bash
-Copy
-Edit
+```
+### Install Kubernetes dan Minikube
+Setelah itu, ikuti langkah-langkah berikut untuk menambahkan repository Kubernetes dan menginstal Minikube:
+```bash
 sudo curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 sudo echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
 sudo apt update -y
 sudo apt install -y kubectl kubeadm kubelet
 sudo apt-mark hold kubectl kubeadm kubelet
-Install Minikube dan Nginx:
-bash
-Copy
-Edit
+```
+### Install Minikube
+```bash
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
-minikube start --driver=docker  # Jalankan di luar user root
+minikube start --driver=docker #Jalankan di luar user root
+```
+### Install Nginx
+```bash
 sudo apt install nginx -y
 sudo apt install apt-transport-https curl -y
-2. Langkah Konfigurasi
-Membuat Struktur Folder:
-Buat folder yang dibutuhkan untuk proyek ini:
-
-bash
-Copy
-Edit
+```
+### Usage
+Folder Structure
+Setelah menginstal semua dependensi, buat struktur folder untuk proyek:
+```bash
 mkdir loadbalancer && cd loadbalancer
 mkdir web && mkdir k8s
-Docker Configuration:
-Tarik image nginx:alpine dan buat file Dockerfile:
-
-bash
-Copy
-Edit
+```
+### Folder Structure
+```bash
+/loadbalancer
+│
+├── /k8s           # Konfigurasi Kubernetes
+│   ├── loadbalancer-deployment.yaml  # Deployment untuk aplikasi
+│   ├── loadbalancer-service.yaml     # Service yang expose aplikasi
+│
+├── /web                  # Website yang dijalankan di Nginx
+│   ├── index.html        # Halaman utama website
+│   ├── [file lainnya]    # File website lainnya (CSS, JS, dll)
+│
+├──├── Dockerfile        # Dockerfile untuk container aplikas  
+```
+### Build Docker Image
+Tarik image nginx:alpine dan buat Dockerfile untuk load balancer:
+```bash
 docker pull nginx:alpine
 nano Dockerfile
-Masukkan skrip berikut dalam Dockerfile:
-
-Dockerfile
-Copy
-Edit
+```
+Isi Dockerfile dengan script berikut:
+```bash
 FROM nginx:alpine
 COPY web /usr/share/nginx/html
 CMD ["sh", "-c", "echo $(hostname) > /usr/share/nginx/html/hostname && nginx -g 'daemon off;'"]
-Build Docker Image:
-Setelah membuat Dockerfile, pastikan folder web sudah berisi file website lo. Lalu, build image dengan perintah:
-
-bash
-Copy
-Edit
+```
+Setelah itu, bangun image Docker dengan perintah:
+```bash
 docker build -t lbdayus/nama-image-baru .
-Push Docker Image ke DockerHub:
-Login ke DockerHub dan push image yang sudah lo buat:
-
-bash
-Copy
-Edit
+```
+### Push Docker Image to DockerHub
+Login ke akun DockerHub dan push image yang telah dibuat:
+```bash
 docker login -u usernamekalian
 docker tag lbdayus:latest usernamekalian/lbdayus:latest
 docker push usernamekalian/lbdayus:latest
-3. Konfigurasi Kubernetes
-Deployment dan Service Configuration:
+```
+### Kubernetes Configuration
+### 
+File Deployment dan Service
 Buat file konfigurasi untuk deployment dan service.
 
-File Deployment (loadbalancer-deployment.yaml):
-yaml
-Copy
-Edit
+### Deployment (loadbalancer-deployment.yaml):
+```bash
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -99,7 +110,7 @@ spec:
     spec:
       containers:
       - name: ammunitue
-        image: spiuwirkid/lbdayus:latest  # Sesuaikan dengan image yang kalian buat
+        image: spiuwirkid/lbdayus:latest  # Sesuaikan dengan image yang dibuat
         ports:
         - containerPort: 80
         env:
@@ -107,10 +118,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-File Service (loadbalancer-service.yaml):
-yaml
-Copy
-Edit
+```
+### Service (loadbalancer-service.yaml):
+```bash
 apiVersion: v1
 kind: Service
 metadata:
@@ -125,43 +135,51 @@ spec:
       nodePort: 31956
   type: NodePort
   sessionAffinity: None
-Apply Konfigurasi:
-Setelah membuat file deployment dan service, apply keduanya dengan perintah:
-
-bash
-Copy
-Edit
+```
+### Apply Konfigurasi Kubernetes
+Setelah membuat file konfigurasi deployment dan service, terapkan konfigurasi tersebut:
+```bash
 kubectl apply -f loadbalancer-deployment.yaml
 kubectl apply -f loadbalancer-service.yaml
-Verifikasi Pods:
+```
+### Verifikasi Pods dan IP
 Cek apakah pods sudah berjalan dengan baik:
-
-bash
-Copy
-Edit
+```bash
 kubectl get pods
-Mendapatkan IP dan Port:
-Untuk mendapatkan IP Minikube dan port Kubernetes Service, jalankan:
-
-bash
-Copy
-Edit
+```
+### Untuk mendapatkan IP Minikube dan port Kubernetes Service:
+```bash
 kubectl get svc
 minikube ip
-Konfigurasi Proxy di Nginx:
-Buka file konfigurasi Nginx untuk load balancing:
-
-bash
-Copy
-Edit
+```
+### Contoh IP Minikube dan Port Kubernetes Service:
+kubectl get svc:
+```bash
+ubuntu@ip-10-0-19-160:~$ kubectl get svc
+NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+kubernetes       ClusterIP   10.96.0.1       <none>        443/TCP        100m
+my-app-service   NodePort    10.103.95.229   <none>        80:31956/TCP   95m
+```
+minikube ip:
+```bash
+ubuntu@ip-10-0-19-160:~$ minikube ip
+192.168.49.2
+ubuntu@ip-10-0-19-160:~$
+```
+### IP dan Port Service Kubernetes:
+```bash
+192.168.49.2:31956
+```
+### Nginx Proxy Configuration
+Mengatur Proxy di Nginx
+Konfigurasi proxy di Nginx untuk load balancing:
+```bash
 nano /etc/nginx/conf.d/loadbalancer.conf
+```
 Masukkan konfigurasi berikut:
-
-nginx
-Copy
-Edit
+```bash
 upstream web_servers {
-    server 192.168.49.2:31956;  # IP dan port dari minikube yang tadi kita dapatkan
+    server 192.168.49.2:31956;  # Minikube IP dan port
 }
 
 server {
@@ -183,23 +201,19 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
-Testing:
-Coba akses IP Minikube dan port 31956 menggunakan perintah curl:
-
-bash
-Copy
-Edit
+```
+### Testing
+Test apakah load balancer bekerja dengan menjalankan perintah curl:
+```bash
 curl 192.168.49.2:31956
-Jika berhasil, outputnya akan menampilkan konten dari aplikasi web yang berjalan di pod Kubernetes.
+```
+Jika berhasil, outputnya akan memunculkan website yang dijalankan oleh Kubernetes.
 
-Hapus Konfigurasi Default Nginx:
-Terakhir, jangan lupa untuk menghapus konfigurasi default Nginx yang masih berjalan:
-
-bash
-Copy
-Edit
+### Remove Default Nginx Configuration
+Terakhir, hapus konfigurasi default Nginx:
+```bash
 rm /etc/nginx/sites-enabled/default
 rm /etc/nginx/sites-available/default
-4. Penutupan
-Sekarang, load balancer kamu sudah siap dan berjalan! Nginx berhasil mengalihkan trafik ke pods yang menjalankan aplikasi web dengan load balancing yang merata. Semuanya berjalan dalam lingkungan yang diorkestrasi oleh Kubernetes dan dikemas dalam Docker containers.
-
+```
+### Conclusion
+The load balancer is now up and running! Nginx successfully proxies traffic to Kubernetes pods and distributes it evenly. Everything is orchestrated by Kubernetes and packaged in Docker containers.
