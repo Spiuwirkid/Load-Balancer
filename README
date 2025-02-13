@@ -1,0 +1,205 @@
+Load Balancer dengan Nginx, Docker, Kubernetes, dan Minikube
+Proyek ini adalah implementasi Load Balancer menggunakan Nginx, Docker, Kubernetes, dan Minikube. Load balancer ini akan mendistribusikan trafik dari pengguna ke berbagai pod yang menjalankan aplikasi di dalam cluster Kubernetes.
+
+1. Instalasi Prasyarat
+Update Sistem dan Install Dependencies:
+bash
+Copy
+Edit
+sudo apt update && sudo apt upgrade -y
+sudo apt install docker.io -y
+sudo systemctl enable docker
+sudo systemctl start docker
+Mengatur Docker Tanpa Sudo:
+bash
+Copy
+Edit
+sudo usermod -aG docker $USER
+newgrp docker
+Menambahkan Repository Kubernetes:
+bash
+Copy
+Edit
+sudo curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+sudo echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt update -y
+sudo apt install -y kubectl kubeadm kubelet
+sudo apt-mark hold kubectl kubeadm kubelet
+Install Minikube dan Nginx:
+bash
+Copy
+Edit
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube start --driver=docker  # Jalankan di luar user root
+sudo apt install nginx -y
+sudo apt install apt-transport-https curl -y
+2. Langkah Konfigurasi
+Membuat Struktur Folder:
+Buat folder yang dibutuhkan untuk proyek ini:
+
+bash
+Copy
+Edit
+mkdir loadbalancer && cd loadbalancer
+mkdir web && mkdir k8s
+Docker Configuration:
+Tarik image nginx:alpine dan buat file Dockerfile:
+
+bash
+Copy
+Edit
+docker pull nginx:alpine
+nano Dockerfile
+Masukkan skrip berikut dalam Dockerfile:
+
+Dockerfile
+Copy
+Edit
+FROM nginx:alpine
+COPY web /usr/share/nginx/html
+CMD ["sh", "-c", "echo $(hostname) > /usr/share/nginx/html/hostname && nginx -g 'daemon off;'"]
+Build Docker Image:
+Setelah membuat Dockerfile, pastikan folder web sudah berisi file website lo. Lalu, build image dengan perintah:
+
+bash
+Copy
+Edit
+docker build -t lbdayus/nama-image-baru .
+Push Docker Image ke DockerHub:
+Login ke DockerHub dan push image yang sudah lo buat:
+
+bash
+Copy
+Edit
+docker login -u usernamekalian
+docker tag lbdayus:latest usernamekalian/lbdayus:latest
+docker push usernamekalian/lbdayus:latest
+3. Konfigurasi Kubernetes
+Deployment dan Service Configuration:
+Buat file konfigurasi untuk deployment dan service.
+
+File Deployment (loadbalancer-deployment.yaml):
+yaml
+Copy
+Edit
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadbalancer
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: loadbalancer
+  template:
+    metadata:
+      labels:
+        app: loadbalancer
+    spec:
+      containers:
+      - name: ammunitue
+        image: spiuwirkid/lbdayus:latest  # Sesuaikan dengan image yang kalian buat
+        ports:
+        - containerPort: 80
+        env:
+        - name: POD_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+File Service (loadbalancer-service.yaml):
+yaml
+Copy
+Edit
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  selector:
+    app: loadbalancer
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 31956
+  type: NodePort
+  sessionAffinity: None
+Apply Konfigurasi:
+Setelah membuat file deployment dan service, apply keduanya dengan perintah:
+
+bash
+Copy
+Edit
+kubectl apply -f loadbalancer-deployment.yaml
+kubectl apply -f loadbalancer-service.yaml
+Verifikasi Pods:
+Cek apakah pods sudah berjalan dengan baik:
+
+bash
+Copy
+Edit
+kubectl get pods
+Mendapatkan IP dan Port:
+Untuk mendapatkan IP Minikube dan port Kubernetes Service, jalankan:
+
+bash
+Copy
+Edit
+kubectl get svc
+minikube ip
+Konfigurasi Proxy di Nginx:
+Buka file konfigurasi Nginx untuk load balancing:
+
+bash
+Copy
+Edit
+nano /etc/nginx/conf.d/loadbalancer.conf
+Masukkan konfigurasi berikut:
+
+nginx
+Copy
+Edit
+upstream web_servers {
+    server 192.168.49.2:31956;  # IP dan port dari minikube yang tadi kita dapatkan
+}
+
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://web_servers;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /hostname {
+        proxy_pass http://web_servers/hostname;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+Testing:
+Coba akses IP Minikube dan port 31956 menggunakan perintah curl:
+
+bash
+Copy
+Edit
+curl 192.168.49.2:31956
+Jika berhasil, outputnya akan menampilkan konten dari aplikasi web yang berjalan di pod Kubernetes.
+
+Hapus Konfigurasi Default Nginx:
+Terakhir, jangan lupa untuk menghapus konfigurasi default Nginx yang masih berjalan:
+
+bash
+Copy
+Edit
+rm /etc/nginx/sites-enabled/default
+rm /etc/nginx/sites-available/default
+4. Penutupan
+Sekarang, load balancer kamu sudah siap dan berjalan! Nginx berhasil mengalihkan trafik ke pods yang menjalankan aplikasi web dengan load balancing yang merata. Semuanya berjalan dalam lingkungan yang diorkestrasi oleh Kubernetes dan dikemas dalam Docker containers.
+
