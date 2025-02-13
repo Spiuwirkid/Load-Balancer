@@ -1,4 +1,4 @@
-# Canvas Load Balancer dengan Nginx, Docker, Kubernetes, dan Minikube
+# Load Balancer dengan Nginx, Docker, Kubernetes, dan Minikube
 
 Proyek ini adalah implementasi Load Balancer menggunakan Nginx, Docker, Kubernetes, dan Minikube. Load Balancer ini mendistribusikan trafik dari pengguna ke beberapa pod yang menjalankan aplikasi di dalam cluster Kubernetes.
 
